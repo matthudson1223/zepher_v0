@@ -1,0 +1,24 @@
+# Bitcoin Volatility Trading System - Dependencies
+
+# Exchange API
+ccxt>=4.0.0
+
+# Data manipulation
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Technical indicators
+pandas-ta>=0.3.14b
+
+# Visualization
+plotly>=5.18.0
+
+# Configuration
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Database (SQLite is built-in, but we need this for type hints)
+# No additional package needed for SQLite
+
+# Development
+pytest>=7.4.0

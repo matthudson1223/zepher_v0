@@ -1,0 +1,69 @@
+# Bitcoin Volatility Trading System - Configuration
+
+# Exchange settings
+exchanges:
+  binance:
+    enabled: false
+    rate_limit: 1200  # requests per minute
+    timeout: 30000    # milliseconds
+  coinbase:
+    enabled: false
+    rate_limit: 300
+    timeout: 30000
+  kraken:
+    enabled: true
+    rate_limit: 300
+    timeout: 30000
+
+# Trading pairs
+symbols:
+  - BTC/USDT
+
+# Timeframe settings
+timeframes:
+  default: 1d
+  available:
+    - 1h
+    - 4h
+    - 1d
+
+# Volatility parameters
+volatility:
+  # Rolling window periods (in days)
+  windows:
+    short: 7
+    medium: 30
+    long: 90
+  # Annualization factor (365 for crypto, 252 for stocks)
+  annualization_factor: 365
+
+# Bollinger Bands settings
+bollinger:
+  period: 20
+  std_dev: 2.0
+
+# ATR (Average True Range) settings
+atr:
+  period: 14
+
+# Percentile ranking settings
+percentile:
+  lookback: 252  # ~1 year of daily data
+
+# Database settings
+database:
+  path: data/btc_data.db
+
+# Logging settings
+logging:
+  level: INFO
+  file: logs/trading.log
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Data fetching settings
+data:
+  # Number of candles to fetch per request
+  limit: 1000
+  # Default history to fetch (in days)
+  default_history_days: 365

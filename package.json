@@ -1,0 +1,13 @@
+{
+  "name": "zepher_v0",
+  "version": "1.0.0",
+  "description": "Bitcoin Volatility Trading System",
+  "main": "main.py",
+  "scripts": {
+    "start": "python main.py demo",
+    "view-chart": "open output/btc_demo_chart.html || xdg-open output/btc_demo_chart.html || start output/btc_demo_chart.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
