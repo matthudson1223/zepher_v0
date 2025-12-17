@@ -13,3 +13,30 @@
 2025-12-17 13:24:00 | INFO     | btc_volatility:cmd_fetch:90 | Fetch complete: 0 new records stored
 2025-12-17 13:24:13 | INFO     | btc_volatility:cmd_analyze:105 | Starting volatility analysis
 2025-12-17 13:24:45 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:25:14 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:26:44 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:27:21 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:27:49 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:28:02 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:28:15 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:28:34 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:33:54 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:36:03 | INFO     | btc_volatility:cmd_fetch:44 | Starting data fetch: BTC/USDT from kraken
+2025-12-17 16:36:03 | INFO     | btc_volatility:cmd_fetch:61 | Resuming from 2025-12-17
+2025-12-17 16:36:04 | INFO     | btc_volatility:cmd_fetch:90 | Fetch complete: 0 new records stored
+2025-12-17 16:36:09 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:36:51 | INFO     | btc_volatility:cmd_fetch:44 | Starting data fetch: BTC/USDT from kraken
+2025-12-17 16:36:51 | INFO     | btc_volatility:cmd_fetch:61 | Resuming from 2025-12-17
+2025-12-17 16:36:52 | INFO     | btc_volatility:progress:68 | Progress: 2025-12-17 - 1 candles fetched
+2025-12-17 16:36:52 | INFO     | btc_volatility:cmd_fetch:90 | Fetch complete: 0 new records stored
+2025-12-17 16:37:03 | INFO     | btc_volatility:cmd_fetch:44 | Starting data fetch: BTC/USDT from kraken
+2025-12-17 16:37:03 | INFO     | btc_volatility:cmd_fetch:64 | Fetching 1825 days of data
+2025-12-17 16:37:03 | INFO     | btc_volatility:progress:68 | Progress: 2025-12-16 - 720 candles fetched
+2025-12-17 16:37:04 | INFO     | btc_volatility:progress:68 | Progress: 2025-12-17 - 721 candles fetched
+2025-12-17 16:37:04 | INFO     | btc_volatility:cmd_fetch:90 | Fetch complete: 356 new records stored
+2025-12-17 16:37:15 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:37:23 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:38:28 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:39:19 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:39:51 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 16:40:28 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals

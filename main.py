@@ -248,8 +248,13 @@ def cmd_signal(args):
 
     df = calc.add_indicators_to_df(df)
 
-    # Generate signals
-    signal_generator = SignalGenerator(config.data, database=db)
+    # Generate signals - pass full config for strategies, filters, and validation
+    full_config = {
+        'strategies': config.get('strategies', {}),
+        'filters': config.get('filters', {}),
+        'validation': config.get('validation', {})
+    }
+    signal_generator = SignalGenerator(full_config, database=db)
 
     if args.reset_positions:
         signal_generator.reset_positions()

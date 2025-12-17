@@ -92,7 +92,7 @@ class SignalValidator:
             return False
 
         # Check position limits
-        if not self._validate_position_limits(signal, signals):
+        if not self._validate_position_limits(signal):
             return False
 
         return True
@@ -233,13 +233,12 @@ class SignalValidator:
 
         return True
 
-    def _validate_position_limits(self, signal: Signal, all_signals: List[Signal]) -> bool:
+    def _validate_position_limits(self, signal: Signal) -> bool:
         """
         Validate position limits aren't exceeded
 
         Args:
             signal: Signal to validate
-            all_signals: All signals for context
 
         Returns:
             True if position limits are respected

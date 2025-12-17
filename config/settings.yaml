@@ -118,7 +118,7 @@ validation:
   check_liquidity: true
   min_volume: 100000                # Minimum USD volume
   check_spread: true
-  max_spread_percent: 0.5           # Maximum 0.5% spread
+  max_spread_percent: 10.0          # Maximum 10% spread (suitable for daily candles)
   check_market_hours: false         # Crypto is 24/7
   validate_indicators: true
   max_position_size: 1              # Maximum concurrent positions per strategy

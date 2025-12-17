@@ -250,6 +250,18 @@ class VolatilityCalculator:
         """
         lookback = lookback or self.percentile_lookback
 
+        # Adjust lookback if insufficient data available
+        # Use at least 30 periods for meaningful percentile calculation
+        available_data = len(volatility.dropna())
+        if available_data < lookback:
+            adjusted_lookback = max(30, available_data)
+            if adjusted_lookback != lookback:
+                logger.info(
+                    f"Adjusted percentile lookback from {lookback} to {adjusted_lookback} "
+                    f"due to limited data ({available_data} points available)"
+                )
+                lookback = adjusted_lookback
+
         def rolling_percentile(x):
             """Calculate percentile of last value within the window."""
             if len(x) < 2:
