@@ -21,6 +21,7 @@ from src.config import get_config
 from src.data.collector import ExchangeCollector
 from src.data.database import Database
 from src.indicators.volatility import VolatilityCalculator
+from src.signals.generator import SignalGenerator
 from src.utils.logger import setup_logger
 from src.visualization.charts import ChartBuilder
 
@@ -211,6 +212,111 @@ def cmd_plot(args):
 
     if args.show:
         builder.show()
+
+    return 0
+
+
+def cmd_signal(args):
+    """Generate trading signals based on current market conditions."""
+    logger = setup_logging()
+    config = get_config()
+
+    logger.info("Generating trading signals")
+
+    # Load data from database
+    db_path = config.get_path("database.path")
+    db = Database(db_path)
+
+    df = db.get_ohlcv(args.exchange, args.symbol, args.timeframe)
+
+    if df.empty:
+        logger.error("No data found. Run 'fetch' command first.")
+        return 1
+
+    # Limit to last N days for signal generation
+    if args.lookback_days:
+        cutoff = df.index[-1] - timedelta(days=args.lookback_days)
+        df = df[df.index >= cutoff]
+
+    # Calculate indicators
+    calc = VolatilityCalculator(
+        annualization_factor=config.get("volatility.annualization_factor", 365),
+        bb_period=config.get("bollinger.period", 20),
+        bb_std=config.get("bollinger.std_dev", 2.0),
+        atr_period=config.get("atr.period", 14),
+    )
+
+    df = calc.add_indicators_to_df(df)
+
+    # Generate signals
+    signal_generator = SignalGenerator(config.data, database=db)
+
+    if args.reset_positions:
+        signal_generator.reset_positions()
+        print("All strategy positions reset")
+
+    signals = signal_generator.generate_signals(df)
+
+    # Display signals
+    print("\n" + "=" * 80)
+    print(f"TRADING SIGNALS: {args.symbol}")
+    print(f"Data Range: {df.index[0].date()} to {df.index[-1].date()}")
+    print("=" * 80)
+
+    if not signals:
+        print("\nNo signals generated at this time.")
+    else:
+        print(f"\n{len(signals)} signal(s) generated:\n")
+
+        # Sort signals by timestamp (most recent first)
+        signals.sort(key=lambda x: x.timestamp, reverse=True)
+
+        # Display up to the specified limit
+        display_limit = min(args.limit, len(signals))
+        for i, signal in enumerate(signals[:display_limit]):
+            print(f"{i+1}. {signal}")
+            print(f"   Reason: {signal.reason}")
+            if args.verbose:
+                print(f"   Indicators: {signal.indicators}")
+            print()
+
+    # Show active positions
+    positions = signal_generator.get_active_positions()
+    if positions:
+        print("\nActive Positions:")
+        for strategy, position in positions.items():
+            print(f"  {strategy}: {position['position']}")
+            if position.get('entry_price'):
+                print(f"    Entry Price: ${position['entry_price']:,.2f}")
+
+    # Show signal summary from database
+    if args.show_history:
+        print("\n" + "-" * 80)
+        print("SIGNAL HISTORY (from database):")
+        summary = db.get_signal_summary()
+        if not summary.empty:
+            print(summary.to_string(index=False))
+        else:
+            print("No historical signals in database")
+
+    # Show current market conditions
+    latest = df.iloc[-1]
+    print("\n" + "-" * 80)
+    print("CURRENT MARKET CONDITIONS:")
+    print(f"  Price: ${latest['close']:,.2f}")
+    print(f"  Volatility Percentile: {latest['vol_percentile']:.1f}%")
+    print(f"  Bollinger %B: {latest['bb_percent_b']:.2%}")
+    print(f"  ATR: ${latest['atr']:,.2f}")
+
+    # Regime interpretation
+    if latest["vol_percentile"] >= 80:
+        print("\n  📊 HIGH volatility regime - Mean reversion strategies active")
+    elif latest["vol_percentile"] <= 20:
+        print("\n  📊 LOW volatility regime - Breakout strategies active")
+    else:
+        print("\n  📊 NORMAL volatility regime - All strategies monitoring")
+
+    print("=" * 80)
 
     return 0
 
@@ -415,6 +521,51 @@ Examples:
         help="Open chart in browser after saving",
     )
 
+    # Signal command
+    signal_parser = subparsers.add_parser("signal", help="Generate trading signals")
+    signal_parser.add_argument(
+        "--exchange",
+        default="kraken",
+        help="Exchange (default: kraken)",
+    )
+    signal_parser.add_argument(
+        "--symbol",
+        default="BTC/USDT",
+        help="Trading pair (default: BTC/USDT)",
+    )
+    signal_parser.add_argument(
+        "--timeframe",
+        default="1d",
+        help="Timeframe (default: 1d)",
+    )
+    signal_parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=100,
+        help="Days of history to analyze for signals (default: 100)",
+    )
+    signal_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of signals to display (default: 10)",
+    )
+    signal_parser.add_argument(
+        "--reset-positions",
+        action="store_true",
+        help="Reset all strategy positions before generating signals",
+    )
+    signal_parser.add_argument(
+        "--show-history",
+        action="store_true",
+        help="Show historical signal summary from database",
+    )
+    signal_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Show detailed indicator values for each signal",
+    )
+
     # Demo command
     demo_parser = subparsers.add_parser("demo", help="Run complete demo")
 
@@ -430,6 +581,7 @@ Examples:
         "fetch": cmd_fetch,
         "analyze": cmd_analyze,
         "plot": cmd_plot,
+        "signal": cmd_signal,
         "demo": cmd_demo,
     }
 

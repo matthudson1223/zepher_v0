@@ -122,6 +122,51 @@ class Database:
                 )
             """)
 
+            # Signals table for trading signals
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS signals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp INTEGER NOT NULL,
+                    strategy_name TEXT NOT NULL,
+                    signal_type TEXT NOT NULL,
+                    strength REAL NOT NULL,
+                    price REAL NOT NULL,
+                    reason TEXT,
+                    indicators TEXT,  -- JSON string
+                    metadata TEXT,    -- JSON string
+                    executed BOOLEAN DEFAULT FALSE,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Create indexes for signals table
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_signals_timestamp
+                ON signals(timestamp)
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_signals_strategy
+                ON signals(strategy_name, signal_type)
+            """)
+
+            # Strategy performance table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_performance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    strategy_name TEXT NOT NULL,
+                    signal_id INTEGER,
+                    entry_time INTEGER,
+                    exit_time INTEGER,
+                    entry_price REAL,
+                    exit_price REAL,
+                    profit_loss REAL,
+                    profit_loss_pct REAL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (signal_id) REFERENCES signals(id)
+                )
+            """)
+
         logger.debug("Database schema initialized")
 
     def insert_ohlcv(
@@ -411,3 +456,238 @@ class Database:
         logger.info(f"Deleted {deleted} records")
 
         return deleted
+
+    def store_signal(self, signal_dict: dict) -> int:
+        """
+        Store a trading signal in the database.
+
+        Args:
+            signal_dict: Dictionary containing signal data with keys:
+                timestamp, strategy_name, signal_type, strength, price,
+                reason, indicators (dict), metadata (dict)
+
+        Returns:
+            ID of the inserted signal.
+        """
+        import json
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO signals
+                (timestamp, strategy_name, signal_type, strength, price, reason, indicators, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    signal_dict['timestamp'],
+                    signal_dict['strategy_name'],
+                    signal_dict['signal_type'],
+                    signal_dict['strength'],
+                    signal_dict['price'],
+                    signal_dict.get('reason', ''),
+                    json.dumps(signal_dict.get('indicators', {})),
+                    json.dumps(signal_dict.get('metadata', {}))
+                )
+            )
+            signal_id = cursor.lastrowid
+            logger.debug(f"Stored signal {signal_id}: {signal_dict['strategy_name']} {signal_dict['signal_type']}")
+            return signal_id
+
+    def get_signals(
+        self,
+        strategy_name: Optional[str] = None,
+        signal_type: Optional[str] = None,
+        start_time: Optional[datetime | int] = None,
+        end_time: Optional[datetime | int] = None,
+        limit: Optional[int] = None,
+        executed_only: bool = False
+    ) -> pd.DataFrame:
+        """
+        Retrieve signals from the database.
+
+        Args:
+            strategy_name: Filter by strategy name.
+            signal_type: Filter by signal type (LONG, SHORT, EXIT_LONG, EXIT_SHORT).
+            start_time: Start timestamp (datetime or Unix ms).
+            end_time: End timestamp (datetime or Unix ms).
+            limit: Maximum number of records to return.
+            executed_only: If True, only return executed signals.
+
+        Returns:
+            DataFrame with signal data.
+        """
+        import json
+
+        query = "SELECT * FROM signals WHERE 1=1"
+        params = []
+
+        if strategy_name:
+            query += " AND strategy_name = ?"
+            params.append(strategy_name)
+
+        if signal_type:
+            query += " AND signal_type = ?"
+            params.append(signal_type)
+
+        if executed_only:
+            query += " AND executed = TRUE"
+
+        if start_time:
+            if isinstance(start_time, datetime):
+                start_time = int(start_time.timestamp() * 1000)
+            query += " AND timestamp >= ?"
+            params.append(start_time)
+
+        if end_time:
+            if isinstance(end_time, datetime):
+                end_time = int(end_time.timestamp() * 1000)
+            query += " AND timestamp <= ?"
+            params.append(end_time)
+
+        query += " ORDER BY timestamp DESC"
+
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        with self._get_connection() as conn:
+            df = pd.read_sql_query(query, conn, params=params)
+
+        if not df.empty:
+            # Parse JSON fields
+            df['indicators'] = df['indicators'].apply(lambda x: json.loads(x) if x else {})
+            df['metadata'] = df['metadata'].apply(lambda x: json.loads(x) if x else {})
+            # Convert timestamp to datetime
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
+            df.set_index('timestamp', inplace=True)
+
+        logger.debug(f"Retrieved {len(df)} signals")
+        return df
+
+    def mark_signal_executed(self, signal_id: int) -> None:
+        """
+        Mark a signal as executed.
+
+        Args:
+            signal_id: ID of the signal to mark as executed.
+        """
+        with self._get_connection() as conn:
+            conn.execute(
+                "UPDATE signals SET executed = TRUE WHERE id = ?",
+                (signal_id,)
+            )
+            logger.debug(f"Marked signal {signal_id} as executed")
+
+    def store_strategy_performance(
+        self,
+        strategy_name: str,
+        signal_id: int,
+        entry_time: int,
+        exit_time: int,
+        entry_price: float,
+        exit_price: float,
+        profit_loss: float,
+        profit_loss_pct: float
+    ) -> int:
+        """
+        Store strategy performance record.
+
+        Args:
+            strategy_name: Name of the strategy.
+            signal_id: ID of the associated signal.
+            entry_time: Entry timestamp in milliseconds.
+            exit_time: Exit timestamp in milliseconds.
+            entry_price: Entry price.
+            exit_price: Exit price.
+            profit_loss: Absolute profit/loss.
+            profit_loss_pct: Profit/loss percentage.
+
+        Returns:
+            ID of the inserted performance record.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO strategy_performance
+                (strategy_name, signal_id, entry_time, exit_time, entry_price, exit_price, profit_loss, profit_loss_pct)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (strategy_name, signal_id, entry_time, exit_time, entry_price, exit_price, profit_loss, profit_loss_pct)
+            )
+            perf_id = cursor.lastrowid
+            logger.debug(f"Stored performance record {perf_id} for {strategy_name}")
+            return perf_id
+
+    def get_strategy_performance(
+        self,
+        strategy_name: Optional[str] = None,
+        start_time: Optional[datetime | int] = None,
+        end_time: Optional[datetime | int] = None
+    ) -> pd.DataFrame:
+        """
+        Get strategy performance records.
+
+        Args:
+            strategy_name: Filter by strategy name.
+            start_time: Start timestamp.
+            end_time: End timestamp.
+
+        Returns:
+            DataFrame with performance data.
+        """
+        query = "SELECT * FROM strategy_performance WHERE 1=1"
+        params = []
+
+        if strategy_name:
+            query += " AND strategy_name = ?"
+            params.append(strategy_name)
+
+        if start_time:
+            if isinstance(start_time, datetime):
+                start_time = int(start_time.timestamp() * 1000)
+            query += " AND entry_time >= ?"
+            params.append(start_time)
+
+        if end_time:
+            if isinstance(end_time, datetime):
+                end_time = int(end_time.timestamp() * 1000)
+            query += " AND exit_time <= ?"
+            params.append(end_time)
+
+        query += " ORDER BY entry_time DESC"
+
+        with self._get_connection() as conn:
+            df = pd.read_sql_query(query, conn, params=params)
+
+        if not df.empty:
+            # Convert timestamps to datetime
+            df['entry_time'] = pd.to_datetime(df['entry_time'], unit='ms', utc=True)
+            df['exit_time'] = pd.to_datetime(df['exit_time'], unit='ms', utc=True)
+
+        logger.debug(f"Retrieved {len(df)} performance records")
+        return df
+
+    def get_signal_summary(self) -> pd.DataFrame:
+        """
+        Get a summary of signals by strategy and type.
+
+        Returns:
+            DataFrame with signal counts by strategy and type.
+        """
+        with self._get_connection() as conn:
+            df = pd.read_sql_query(
+                """
+                SELECT
+                    strategy_name,
+                    signal_type,
+                    COUNT(*) as count,
+                    AVG(strength) as avg_strength,
+                    COUNT(CASE WHEN executed = TRUE THEN 1 END) as executed_count
+                FROM signals
+                GROUP BY strategy_name, signal_type
+                ORDER BY strategy_name, signal_type
+                """,
+                conn
+            )
+
+        return df

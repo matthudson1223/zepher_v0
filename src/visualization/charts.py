@@ -331,6 +331,210 @@ class ChartBuilder:
 
         return self
 
+    def add_signals(
+        self,
+        signals: list,
+        show_annotations: bool = True,
+    ) -> "ChartBuilder":
+        """
+        Add trading signals to the price chart.
+
+        Args:
+            signals: List of Signal objects with timestamp, signal_type, price, etc.
+            show_annotations: Whether to show text annotations for signals.
+
+        Returns:
+            Self for method chaining.
+        """
+        if not signals:
+            return self
+
+        # Separate signals by type
+        long_signals = []
+        short_signals = []
+        exit_long_signals = []
+        exit_short_signals = []
+
+        for signal in signals:
+            # Match signal timestamp to closest dataframe index
+            closest_idx = self.df.index.get_indexer([pd.Timestamp(signal.timestamp)], method='nearest')[0]
+            if closest_idx >= 0 and closest_idx < len(self.df):
+                timestamp = self.df.index[closest_idx]
+
+                if signal.signal_type.value == "LONG":
+                    long_signals.append((timestamp, signal.price, signal.reason[:30]))
+                elif signal.signal_type.value == "SHORT":
+                    short_signals.append((timestamp, signal.price, signal.reason[:30]))
+                elif signal.signal_type.value == "EXIT_LONG":
+                    exit_long_signals.append((timestamp, signal.price, signal.reason[:30]))
+                elif signal.signal_type.value == "EXIT_SHORT":
+                    exit_short_signals.append((timestamp, signal.price, signal.reason[:30]))
+
+        # Add LONG signals (green up arrows)
+        if long_signals:
+            trace = go.Scatter(
+                x=[s[0] for s in long_signals],
+                y=[s[1] for s in long_signals],
+                mode="markers+text" if show_annotations else "markers",
+                name="Long Entry",
+                marker=dict(
+                    symbol="triangle-up",
+                    size=12,
+                    color=self.COLORS["up"],
+                    line=dict(color="white", width=1),
+                ),
+                text=[s[2] for s in long_signals] if show_annotations else None,
+                textposition="bottom center",
+                textfont=dict(size=9, color=self.COLORS["up"]),
+            )
+            self._traces.append((trace, 1))
+
+        # Add SHORT signals (red down arrows)
+        if short_signals:
+            trace = go.Scatter(
+                x=[s[0] for s in short_signals],
+                y=[s[1] for s in short_signals],
+                mode="markers+text" if show_annotations else "markers",
+                name="Short Entry",
+                marker=dict(
+                    symbol="triangle-down",
+                    size=12,
+                    color=self.COLORS["down"],
+                    line=dict(color="white", width=1),
+                ),
+                text=[s[2] for s in short_signals] if show_annotations else None,
+                textposition="top center",
+                textfont=dict(size=9, color=self.COLORS["down"]),
+            )
+            self._traces.append((trace, 1))
+
+        # Add EXIT LONG signals (green X)
+        if exit_long_signals:
+            trace = go.Scatter(
+                x=[s[0] for s in exit_long_signals],
+                y=[s[1] for s in exit_long_signals],
+                mode="markers",
+                name="Exit Long",
+                marker=dict(
+                    symbol="x",
+                    size=10,
+                    color=self.COLORS["up"],
+                    line=dict(width=2),
+                ),
+            )
+            self._traces.append((trace, 1))
+
+        # Add EXIT SHORT signals (red X)
+        if exit_short_signals:
+            trace = go.Scatter(
+                x=[s[0] for s in exit_short_signals],
+                y=[s[1] for s in exit_short_signals],
+                mode="markers",
+                name="Exit Short",
+                marker=dict(
+                    symbol="x",
+                    size=10,
+                    color=self.COLORS["down"],
+                    line=dict(width=2),
+                ),
+            )
+            self._traces.append((trace, 1))
+
+        return self
+
+    def add_strategy_zones(
+        self,
+        show_mean_reversion: bool = True,
+        show_breakout: bool = True,
+    ) -> "ChartBuilder":
+        """
+        Add shaded zones to indicate strategy regimes.
+
+        Args:
+            show_mean_reversion: Show high volatility zones for mean reversion.
+            show_breakout: Show low volatility zones for breakout.
+
+        Returns:
+            Self for method chaining.
+        """
+        if 'vol_percentile' not in self.df.columns:
+            logger.warning("vol_percentile column not found for strategy zones")
+            return self
+
+        # Add mean reversion zones (high volatility >= 80%)
+        if show_mean_reversion:
+            high_vol_periods = self.df['vol_percentile'] >= 80
+            self._add_shaded_regions(
+                high_vol_periods,
+                "Mean Reversion Zone",
+                "rgba(255, 87, 34, 0.1)"  # Orange shade
+            )
+
+        # Add breakout zones (low volatility <= 20%)
+        if show_breakout:
+            low_vol_periods = self.df['vol_percentile'] <= 20
+            self._add_shaded_regions(
+                low_vol_periods,
+                "Breakout Zone",
+                "rgba(33, 150, 243, 0.1)"  # Blue shade
+            )
+
+        return self
+
+    def _add_shaded_regions(
+        self,
+        mask: pd.Series,
+        name: str,
+        color: str,
+    ) -> None:
+        """
+        Helper to add shaded regions to the chart.
+
+        Args:
+            mask: Boolean series indicating where to shade.
+            name: Name for the shaded region.
+            color: RGBA color for the shade.
+        """
+        # Find continuous regions where mask is True
+        regions = []
+        start_idx = None
+
+        for i, val in enumerate(mask):
+            if val and start_idx is None:
+                start_idx = i
+            elif not val and start_idx is not None:
+                regions.append((start_idx, i - 1))
+                start_idx = None
+
+        # Handle case where last region extends to end
+        if start_idx is not None:
+            regions.append((start_idx, len(mask) - 1))
+
+        # Add a shape for each region
+        for i, (start, end) in enumerate(regions):
+            # Only label the first region
+            show_legend = (i == 0)
+
+            # Create a filled rectangle from price min to max
+            price_min = self.df['low'].min()
+            price_max = self.df['high'].max()
+
+            trace = go.Scatter(
+                x=[
+                    self.df.index[start], self.df.index[end],
+                    self.df.index[end], self.df.index[start]
+                ],
+                y=[price_min, price_min, price_max, price_max],
+                fill="toself",
+                fillcolor=color,
+                line=dict(width=0),
+                mode="lines",
+                name=name if show_legend else None,
+                showlegend=show_legend,
+                hoverinfo="skip",
+            )
+            self._traces.append((trace, 1))
+
     def build(self) -> go.Figure:
         """
         Build and return the final figure.

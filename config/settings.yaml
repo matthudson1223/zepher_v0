@@ -67,3 +67,58 @@ data:
   limit: 1000
   # Default history to fetch (in days)
   default_history_days: 365
+
+# Trading Strategy Settings
+strategies:
+  # Mean Reversion Strategy
+  mean_reversion:
+    enabled: true
+    min_strength: 50.0              # Minimum signal strength (0-100)
+    bb_upper_threshold: 1.0         # %B threshold for short entry
+    bb_lower_threshold: 0.0         # %B threshold for long entry
+    exit_target: 0.5                # %B target for exit (middle band)
+    exit_tolerance: 0.1             # Tolerance around exit target
+    vol_percentile_min: 80          # Minimum volatility percentile for trades
+    min_bb_width: 0.02              # Minimum BB width to avoid false signals
+
+  # Breakout Strategy
+  breakout:
+    enabled: true
+    min_strength: 50.0
+    vol_percentile_max: 20          # Maximum volatility for setup
+    bb_squeeze_threshold: 0.03      # BB width threshold for squeeze detection
+    volume_multiplier: 1.5          # Volume must be 1.5x average
+    atr_expansion: 1.2              # ATR must expand by 20%
+    profit_target_atr: 2.0          # Take profit at 2x ATR
+    stop_loss_atr: 1.0              # Stop loss at 1x ATR
+    lookback_period: 20             # Periods to look back for squeeze
+
+  # Volatility Compression Strategy
+  compression:
+    enabled: true
+    min_strength: 50.0
+    compression_period: 14          # Look for 14-period squeeze
+    bb_width_percentile: 10        # BB width in bottom 10% historically
+    expansion_threshold: 1.5        # Exit when BB expands 50%
+    max_holding_period: 20          # Maximum periods to hold position
+    vol_decline_periods: 5          # Periods to check for volatility decline
+    price_range_threshold: 0.02     # Maximum 2% price range for consolidation
+
+# Signal Filtering Settings
+filters:
+  min_strength: 50.0                # Minimum signal strength to consider
+  min_time_between_signals: 60      # Minutes between signals of same type
+  max_signals_per_day: 10           # Maximum signals per trading day
+  filter_conflicting: true          # Filter conflicting signals
+  filter_whipsaws: true             # Filter rapid reversals
+  whipsaw_window: 30                # Minutes to check for whipsaws
+
+# Signal Validation Settings
+validation:
+  check_liquidity: true
+  min_volume: 100000                # Minimum USD volume
+  check_spread: true
+  max_spread_percent: 0.5           # Maximum 0.5% spread
+  check_market_hours: false         # Crypto is 24/7
+  validate_indicators: true
+  max_position_size: 1              # Maximum concurrent positions per strategy

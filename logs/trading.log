@@ -5,3 +5,11 @@
 2025-12-17 04:07:26 | INFO     | btc_volatility:cmd_fetch:43 | Starting data fetch: BTC/USDT from kraken
 2025-12-17 04:07:26 | INFO     | btc_volatility:cmd_fetch:63 | Fetching 365 days of data
 2025-12-17 04:07:27 | INFO     | btc_volatility:cmd_fetch:89 | Fetch complete: 365 new records stored
+2025-12-17 04:19:05 | INFO     | btc_volatility:cmd_analyze:104 | Starting volatility analysis
+2025-12-17 04:19:50 | INFO     | btc_volatility:cmd_plot:173 | Generating chart
+2025-12-17 13:23:15 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
+2025-12-17 13:23:59 | INFO     | btc_volatility:cmd_fetch:44 | Starting data fetch: BTC/USDT from kraken
+2025-12-17 13:23:59 | INFO     | btc_volatility:cmd_fetch:61 | Resuming from 2025-12-17
+2025-12-17 13:24:00 | INFO     | btc_volatility:cmd_fetch:90 | Fetch complete: 0 new records stored
+2025-12-17 13:24:13 | INFO     | btc_volatility:cmd_analyze:105 | Starting volatility analysis
+2025-12-17 13:24:45 | INFO     | btc_volatility:cmd_signal:224 | Generating trading signals
